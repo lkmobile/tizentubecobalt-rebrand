@@ -1,0 +1,72 @@
+name: Patch TizeTubeCobalt
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to rebrand, e.g. 1.0.8'
+        required: true
+        default: '1.0.8'
+        type: string
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions: write-all
+
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'build-tools;36.0.0'
+
+      - name: Add build-tools to PATH
+        run: |
+          BUILD_TOOLS_PATH=($ANDROID_HOME/build-tools/*)
+          echo "${BUILD_TOOLS_PATH[0]}" >> "$GITHUB_PATH"
+
+      - name: Download TizenTubeCobalt
+        id: get-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ inputs.version || github.event.inputs.version }}"
+          TAG="v${VERSION#v}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+          mkdir -p assets && cd assets
+
+          gh release download $TAG \
+            --repo "reisxd/TizenTubeCobalt" \
+            --pattern "*.apk"
+
+          RELEASE_BODY=$(gh release view "$TAG" -R reisxd/TizenTubeCobalt --json body -q '.body')
+          echo "release_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Patch apk
+        run: |
+          cd assets
+          for file in *.apk; do
+            FILENAME=${file%.apk}
+            bash ../patch.sh $file
+          done
+
+      - name: Release APK
+        uses: svenstaro/upload-release-action@v2 
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.get-release.outputs.tag }}
+          release_name: TizenTubeCobalt Rebranded ${{ steps.get-release.outputs.tag }}
+          body: ${{ steps.get-release.outputs.release_body }}
+          file_glob: true
+          overwrite: true
+          file: assets/*-rebranded.apk
