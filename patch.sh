@@ -46,7 +46,6 @@ apktool d ${COBALT_FILE} -o ${COBALT_TMP} 2>&1 | sed 's/^/  /'
 echo \* Modify names in AndroidManifest.xml
 
 sed -i \
-  -e "s/io.gh.reisxd.tizentube.cobalt/com.google.android.youtube.tv/g" \
   -e "s/label=\"TizenTube\"/label=\"YouTube TV\"/g" \
   -e "s/debuggable=\"true\"/debuggable=\"false\"/g" \
   ${COBALT_TMP}/AndroidManifest.xml 2>&1 | sed 's/^/  /'
