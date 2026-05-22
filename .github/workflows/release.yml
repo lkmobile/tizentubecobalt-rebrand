@@ -19,6 +19,11 @@ on:
         required: false
         default: ''
         type: string
+      release_note:
+        description: 'Custom Release Notes (Optional - Will be appended to the bottom of the release body)'
+        required: false
+        default: ''
+        type: string
   workflow_call:
     inputs:
       version:
@@ -29,6 +34,10 @@ on:
         type: string
         default: ''
       custom_package_id:
+        required: false
+        type: string
+        default: ''
+      release_note:
         required: false
         type: string
         default: ''
@@ -61,6 +70,9 @@ jobs:
           TAG="v${VERSION#v}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
+          # Fetch the custom release notes from inputs
+          CUSTOM_NOTE="${{ inputs.release_note || github.event.inputs.release_note }}"
+
           # Fetch the custom APK URL from inputs
           CUSTOM_URL="${{ inputs.apk_url || github.event.inputs.apk_url }}"
 
@@ -78,8 +90,8 @@ jobs:
             curl -L -o "$FILE_NAME" "$CUSTOM_URL"
             echo "Successfully downloaded: $FILE_NAME"
             
-            # Generate a default release body for custom builds
-            echo "release_body=Rebranded build generated from custom APK URL: $CUSTOM_URL" >> $GITHUB_OUTPUT
+            # Initialize the release body for custom builds
+            RELEASE_BODY="Rebranded build generated from custom APK URL: $CUSTOM_URL"
           else
             echo "No custom URL provided. Fetching official release from reisxd/TizenTubeCobalt..."
             gh release download $TAG \
@@ -87,10 +99,17 @@ jobs:
               --pattern "*.apk"
 
             RELEASE_BODY=$(gh release view "$TAG" -R reisxd/TizenTubeCobalt --json body -q '.body')
-            echo "release_body<<EOF" >> $GITHUB_OUTPUT
-            echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
           fi
+
+          # Append custom release notes if provided
+          if [ -n "$CUSTOM_NOTE" ]; then
+            RELEASE_BODY="$RELEASE_BODY"$'\n\n'"$CUSTOM_NOTE"
+          fi
+
+          # Export the release body using the multiline EOF syntax to prevent formatting issues
+          echo "release_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Patch apk
         env:
