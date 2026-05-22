@@ -46,11 +46,11 @@ apktool d ${COBALT_FILE} -o ${COBALT_TMP} 2>&1 | sed 's/^/  /'
 # Change app name, id
 echo \* Modifying names in AndroidManifest.xml
 
-# Check condition for altering the Package ID
-if [ "$CHANGE_PACKAGE_ID" = "true" ]; then
-  echo "  -> Changing Package ID to com.google.android.youtube.tv"
+# Check if a custom Package ID string has been provided
+if [ -n "$CUSTOM_PACKAGE_ID" ]; then
+  echo "  -> Modifying Package ID to: $CUSTOM_PACKAGE_ID"
   sed -i \
-    -e "s/io.gh.reisxd.tizentube.cobalt/com.google.android.youtube.tv/g" \
+    -e "s/io.gh.reisxd.tizentube.cobalt/${CUSTOM_PACKAGE_ID}/g" \
     -e "s/label=\"TizenTube\"/label=\"YouTube TV\"/g" \
     -e "s/debuggable=\"true\"/debuggable=\"false\"/g" \
     ${COBALT_TMP}/AndroidManifest.xml 2>&1 | sed 's/^/  /'
