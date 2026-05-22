@@ -13,11 +13,11 @@ on:
         required: false
         default: ''
         type: string
-      # Replaced the boolean checkbox with a text input for a custom Package ID
+      # Set default to empty string so the original Package ID is kept unchanged by default
       custom_package_id:
-        description: 'Custom Package ID (Optional - Leave blank to keep the original package ID)'
+        description: 'Custom Package ID (Optional - Leave blank to KEEP original package ID)'
         required: false
-        default: 'com.google.android.youtube.tv'
+        default: ''
         type: string
   workflow_call:
     inputs:
