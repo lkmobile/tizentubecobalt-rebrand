@@ -1,17 +1,36 @@
-name: Patch TizeTubeCobalt
+name: Patch TizenTubeCobalt
+
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'The version to rebrand, e.g. 1.0.8'
+        description: 'The version to rebrand (e.g., 2.0.2). Ignored if Custom APK URL is provided.'
         required: true
         default: '2.0.2'
         type: string
+      apk_url:
+        description: 'Custom APK URL (Optional - Leave blank to use the version specified above)'
+        required: false
+        default: ''
+        type: string
+      change_package_id:
+        description: 'Change Package ID to com.google.android.youtube.tv?'
+        required: true
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       version:
         required: true
         type: string
+      apk_url:
+        required: false
+        type: string
+        default: ''
+      change_package_id:
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   run:
@@ -32,7 +51,7 @@ jobs:
           BUILD_TOOLS_PATH=($ANDROID_HOME/build-tools/*)
           echo "${BUILD_TOOLS_PATH[0]}" >> "$GITHUB_PATH"
 
-      - name: Download TizenTubeCobalt
+      - name: Download TizenTubeCobalt (Release or Custom URL)
         id: get-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -41,23 +60,48 @@ jobs:
           TAG="v${VERSION#v}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
+          # Fetch the custom APK URL from inputs
+          CUSTOM_URL="${{ inputs.apk_url || github.event.inputs.apk_url }}"
+
           mkdir -p assets && cd assets
 
-          gh release download $TAG \
-            --repo "reisxd/TizenTubeCobalt" \
-            --pattern "*.apk"
+          if [ -n "$CUSTOM_URL" ]; then
+            echo "Custom APK URL detected. Downloading..."
+            
+            # Extract filename from URL and strip any query parameters
+            FILE_NAME=$(basename "$CUSTOM_URL" | cut -d? -f1)
+            if [[ "$FILE_NAME" != *.apk ]]; then
+              FILE_NAME="custom_cobalt.apk"
+            fi
+            
+            curl -L -o "$FILE_NAME" "$CUSTOM_URL"
+            echo "Successfully downloaded: $FILE_NAME"
+            
+            # Generate a default release body for custom builds
+            echo "release_body=Rebranded build generated from custom APK URL: $CUSTOM_URL" >> $GITHUB_OUTPUT
+          else
+            echo "No custom URL provided. Fetching official release from reisxd/TizenTubeCobalt..."
+            gh release download $TAG \
+              --repo "reisxd/TizenTubeCobalt" \
+              --pattern "*.apk"
 
-          RELEASE_BODY=$(gh release view "$TAG" -R reisxd/TizenTubeCobalt --json body -q '.body')
-          echo "release_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+            RELEASE_BODY=$(gh release view "$TAG" -R reisxd/TizenTubeCobalt --json body -q '.body')
+            echo "release_body<<EOF" >> $GITHUB_OUTPUT
+            echo "$RELEASE_BODY" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
 
       - name: Patch apk
+        env:
+          # Pass the toggle state as an environment variable to the bash script
+          CHANGE_PACKAGE_ID: ${{ inputs.change_package_id || github.event.inputs.change_package_id }}
         run: |
           cd assets
           for file in *.apk; do
+            # Ensure at least one apk file exists to prevent loop errors
+            [ -e "$file" ] || continue
             FILENAME=${file%.apk}
-            bash ../patch.sh $file
+            CHANGE_PACKAGE_ID=$CHANGE_PACKAGE_ID bash ../patch.sh "$file"
           done
 
       - name: Release APK
