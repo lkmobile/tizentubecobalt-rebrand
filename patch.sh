@@ -33,25 +33,37 @@ COBALT_FILE="$1"
 COBALT_NAME="$(basename "${COBALT_FILE%.*}")"
 COBALT_TMP=${COBALT_NAME}-tmp
 
-# Clean old tmp
-echo \* Clean old tmp
+# Clean old temporary directory
+echo \* Cleaning old temporary files
 
 rm -rf ${COBALT_TMP}
 
-# Decompile
-echo \* Decompile ${COBALT_FILE}
+# Decompile APK
+echo \* Decompiling ${COBALT_FILE}
 
 apktool d ${COBALT_FILE} -o ${COBALT_TMP} 2>&1 | sed 's/^/  /'
-# Change app name, id
-echo \* Modify names in AndroidManifest.xml
 
-sed -i \
-  -e "s/label=\"TizenTube\"/label=\"YouTube TV\"/g" \
-  -e "s/debuggable=\"true\"/debuggable=\"false\"/g" \
-  ${COBALT_TMP}/AndroidManifest.xml 2>&1 | sed 's/^/  /'
+# Change app name, id
+echo \* Modifying names in AndroidManifest.xml
+
+# Check condition for altering the Package ID
+if [ "$CHANGE_PACKAGE_ID" = "true" ]; then
+  echo "  -> Changing Package ID to com.google.android.youtube.tv"
+  sed -i \
+    -e "s/io.gh.reisxd.tizentube.cobalt/com.google.android.youtube.tv/g" \
+    -e "s/label=\"TizenTube\"/label=\"YouTube TV\"/g" \
+    -e "s/debuggable=\"true\"/debuggable=\"false\"/g" \
+    ${COBALT_TMP}/AndroidManifest.xml 2>&1 | sed 's/^/  /'
+else
+  echo "  -> Keeping original Package ID"
+  sed -i \
+    -e "s/label=\"TizenTube\"/label=\"YouTube TV\"/g" \
+    -e "s/debuggable=\"true\"/debuggable=\"false\"/g" \
+    ${COBALT_TMP}/AndroidManifest.xml 2>&1 | sed 's/^/  /'
+fi
 
 # Change app icons
-echo \* Modify icons
+echo \* Modifying icons
 
 (
   shopt -s nullglob
@@ -66,16 +78,19 @@ echo \* Modify icons
   done
 )
 
-# Recompile
-echo \* Recompile
+# Recompile APK
+echo \* Recompiling APK
 apktool b ${COBALT_TMP} -o ${COBALT_TMP}-unaligned.apk 2>&1 | sed 's/^/  /'
 
-echo \* Align apk
+# Align APK
+echo \* Aligning APK
 zipalign -f 4 ${COBALT_TMP}-unaligned.apk ${COBALT_TMP}-aligned.apk
 
-echo \* Sign apk
+# Sign APK
+echo \* Signing APK
 apksigner sign --ks ${SCRIPT_DIR}/debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android ${COBALT_TMP}-aligned.apk
 
-echo \* Clean tmp
+# Clean temporary directory and save output
+echo \* Cleaning up temporary files
 mv ${COBALT_TMP}-aligned.apk ${COBALT_NAME}-rebranded.apk
 rm -rf ${COBALT_TMP}*
