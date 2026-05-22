@@ -13,11 +13,12 @@ on:
         required: false
         default: ''
         type: string
-      change_package_id:
-        description: 'Change Package ID to com.google.android.youtube.tv?'
-        required: true
-        type: boolean
-        default: false
+      # Replaced the boolean checkbox with a text input for a custom Package ID
+      custom_package_id:
+        description: 'Custom Package ID (Optional - Leave blank to keep the original package ID)'
+        required: false
+        default: 'com.google.android.youtube.tv'
+        type: string
   workflow_call:
     inputs:
       version:
@@ -27,10 +28,10 @@ on:
         required: false
         type: string
         default: ''
-      change_package_id:
+      custom_package_id:
         required: false
-        type: boolean
-        default: true
+        type: string
+        default: ''
 
 jobs:
   run:
@@ -93,15 +94,15 @@ jobs:
 
       - name: Patch apk
         env:
-          # Pass the toggle state as an environment variable to the bash script
-          CHANGE_PACKAGE_ID: ${{ inputs.change_package_id || github.event.inputs.change_package_id }}
+          # Pass the custom string package ID value into the script environment
+          CUSTOM_PACKAGE_ID: ${{ inputs.custom_package_id || github.event.inputs.custom_package_id }}
         run: |
           cd assets
           for file in *.apk; do
             # Ensure at least one apk file exists to prevent loop errors
             [ -e "$file" ] || continue
             FILENAME=${file%.apk}
-            CHANGE_PACKAGE_ID=$CHANGE_PACKAGE_ID bash ../patch.sh "$file"
+            CUSTOM_PACKAGE_ID=$CUSTOM_PACKAGE_ID bash ../patch.sh "$file"
           done
 
       - name: Release APK
