@@ -46,7 +46,7 @@ apktool d ${COBALT_FILE} -o ${COBALT_TMP} 2>&1 | sed 's/^/  /'
 # Change app name, id
 echo \* Modifying names in AndroidManifest.xml
 
-# Check if a custom Package ID string has been provided
+# Check if a custom Package ID string has been explicitly provided
 if [ -n "$CUSTOM_PACKAGE_ID" ]; then
   echo "  -> Modifying Package ID to: $CUSTOM_PACKAGE_ID"
   sed -i \
@@ -55,7 +55,8 @@ if [ -n "$CUSTOM_PACKAGE_ID" ]; then
     -e "s/debuggable=\"true\"/debuggable=\"false\"/g" \
     ${COBALT_TMP}/AndroidManifest.xml 2>&1 | sed 's/^/  /'
 else
-  echo "  -> Keeping original Package ID"
+  # Skips package renaming completely if the field is left empty
+  echo "  -> Keeping original Package ID (Default)"
   sed -i \
     -e "s/label=\"TizenTube\"/label=\"YouTube TV\"/g" \
     -e "s/debuggable=\"true\"/debuggable=\"false\"/g" \
