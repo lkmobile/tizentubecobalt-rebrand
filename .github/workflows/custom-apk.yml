@@ -1,4 +1,4 @@
-name: Patch TizenTubeCobalt
+name: Patch TizenTubeCobalt custom apk
 
 on:
   workflow_dispatch:
